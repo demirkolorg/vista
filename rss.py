@@ -7,7 +7,7 @@ import feedparser
 from bs4 import BeautifulSoup
 from collections import Counter
 from datetime import datetime, timedelta
-
+import telegram
 
 Results = []
 YeniHaberler = []
@@ -373,11 +373,16 @@ def ResultsStatistic():
     # Eksik kaynakları kontrol et
     eksik_kaynaklar = [
         kaynak for kaynak in TumKaynaklar if kaynak not in kaynak_sayaci]
+    eksik_kaynak_sayisi = len(eksik_kaynaklar)
+
+    yeni_haber_sayisi = len(YeniHaberler)
 
     # Toplam kayıt ve toplam kaynak sayısını ekleyelim
     istatistikler['!toplam_kaynak_sayisi'] = toplam_kaynak_sayisi
     istatistikler['!toplam_kayit_sayisi'] = toplam_kayit_sayisi
+    istatistikler['!eksik_kaynak_sayisi'] = eksik_kaynak_sayisi
     istatistikler['!eksik_kaynaklar'] = eksik_kaynaklar
+    istatistikler['!yeni_haber_sayisi'] = yeni_haber_sayisi
 
     # Örnek çıktıyı görmek için:
     print(istatistikler)
@@ -399,7 +404,8 @@ def Veritabani():
             haber_kaynak TEXT,
             haber_image TEXT,
             haber_tarih TEXT,
-            haber_gonderildi INTEGER
+            haber_gonderildi INTEGER,
+            haber_van_gonderildi INTEGER
         )
     ''')
 
@@ -416,20 +422,67 @@ def Veritabani():
     # Farklı olan haberleri tekrar veritabanına ekle
     for haber in YeniHaberler:
         c.execute('''
-            INSERT INTO haberler (haber_baslik, haber_icerik, haber_link, haber_kaynak, haber_image, haber_tarih,haber_gonderildi)
-            VALUES (?, ?, ?, ?, ?, ?,?)
-        ''', (haber['haber_baslik'], haber['haber_icerik'], haber['haber_link'], haber['haber_kaynak'], haber['haber_image'], haber['haber_tarih'], 0))
+            INSERT INTO haberler (haber_baslik, haber_icerik, haber_link, haber_kaynak, haber_image, haber_tarih,haber_gonderildi,haber_van_gonderildi)
+            VALUES (?, ?, ?, ?, ?, ?,?,?)
+        ''', (haber['haber_baslik'], haber['haber_icerik'], haber['haber_link'], haber['haber_kaynak'], haber['haber_image'], haber['haber_tarih'], 0, 0))
 
     # Değişiklikleri kaydet ve veritabanını kapat
     conn.commit()
     conn.close()
 
-    print("bekle")
+
+def HaberGonder():
+    conn = sqlite3.connect('vista.db')
+    c = conn.cursor()
+
+    c.execute('SELECT * FROM haberler WHERE haber_gonderildi=0')
+    haberler = c.fetchall()
+
+    for haber in haberler:
+        baslik = haber[1]
+        link = haber[3]
+
+        mesaj = f"{baslik}\n{link}"
+        telegram.SendMessage(mesaj)
+
+        # Haberi gönderildi olarak işaretle
+        c.execute(
+            'UPDATE haberler SET haber_gonderildi=1 WHERE haber_link=?', (haber[3],))
+        conn.commit()
+        time.sleep(2)
+    conn.close()
+
+
+def VanHaberGonder():
+    conn = sqlite3.connect('vista.db')
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM haberler WHERE haber_van_gonderildi=0 AND (haber_baslik LIKE '%van%' OR haber_baslik LIKE '%wan%' OR haber_icerik LIKE '%van%' OR haber_icerik LIKE '%wan%')")
+
+    haberler = c.fetchall()
+
+    for haber in haberler:
+        baslik = haber[1]
+        link = haber[3]
+
+        mesaj = f"{baslik}\n{link}"
+        telegram.SendMessageVan(mesaj)
+
+        # Haberi gönderildi olarak işaretle
+        c.execute(
+            'UPDATE haberler SET haber_van_gonderildi=1 WHERE haber_link=?', (haber[3],))
+        conn.commit()
+        time.sleep(2)
+    conn.close()
 
 
 baslangic_zamani = time.time()
+
 RssParserRun()
 Veritabani()
+HaberGonder()
+VanHaberGonder()
+
 bitis_zamani = time.time()
 gecen_sure = bitis_zamani - baslangic_zamani
 print(f"Kodun çalışması {gecen_sure:.2f} saniye sürdü.")
