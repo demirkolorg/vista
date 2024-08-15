@@ -475,14 +475,13 @@ def VanHaberGonder():
         time.sleep(2)
     conn.close()
 
-
-baslangic_zamani = time.time()
-
-RssParserRun()
-Veritabani()
-HaberGonder()
-VanHaberGonder()
-
-bitis_zamani = time.time()
-gecen_sure = bitis_zamani - baslangic_zamani
-print(f"Kodun çalışması {gecen_sure:.2f} saniye sürdü.")
+while(True):
+    baslangic_zamani = time.time()
+    RssParserRun()
+    Veritabani()
+    HaberGonder()
+    VanHaberGonder()
+    bitis_zamani = time.time()
+    gecen_sure = bitis_zamani - baslangic_zamani
+    print(f"Kodun çalışması {gecen_sure:.2f} saniye sürdü.")
+    time.sleep(600)
