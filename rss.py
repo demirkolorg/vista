@@ -9,6 +9,9 @@ from collections import Counter
 from datetime import datetime, timedelta
 import telegram
 
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 Results = []
 YeniHaberler = []
 
@@ -405,7 +408,8 @@ def Veritabani():
             haber_image TEXT,
             haber_tarih TEXT,
             haber_gonderildi INTEGER,
-            haber_van_gonderildi INTEGER
+            haber_van_gonderildi INTEGER,
+            benzer_haberler TEXT
         )
     ''')
 
@@ -430,7 +434,75 @@ def Veritabani():
     conn.commit()
     conn.close()
 
+def Veritabani2():
+    # SQLite veritabanını oluştur ve bağlan
+    conn = sqlite3.connect('vista.db')
+    c = conn.cursor()
 
+    # Eğer tablo yoksa oluştur ve benzer_haberler kolonunu ekle
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS haberler (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            haber_baslik TEXT,
+            haber_icerik TEXT,
+            haber_link TEXT,
+            haber_kaynak TEXT,
+            haber_image TEXT,
+            haber_tarih TEXT,
+            haber_gonderildi INTEGER,
+            haber_van_gonderildi INTEGER,
+            benzer_haberler TEXT
+        )
+    ''')
+
+    # Veritabanındaki mevcut haberleri çek
+    c.execute("SELECT haber_icerik, haber_link FROM haberler")
+    veritabanindaki_haberler = c.fetchall()
+    veritabanindaki_haberler_icerik = [row[0] for row in veritabanindaki_haberler]
+    veritabanindaki_haberler_link = [row[1] for row in veritabanindaki_haberler]
+
+    # Haber içeriklerini analiz etmek için TF-IDF vektörizasyonu
+    if veritabanindaki_haberler_icerik:
+        vectorizer = TfidfVectorizer().fit(veritabanindaki_haberler_icerik)
+        veritabanindaki_haberler_tfidf = vectorizer.transform(veritabanindaki_haberler_icerik)
+    
+    for haber in Results:
+        # Eğer haberin linki veritabanında varsa döngüye devam et (işlem yapmadan geç)
+        if haber['haber_link'] in veritabanindaki_haberler_link:
+            continue
+        
+        haber_tfidf = vectorizer.transform([haber['haber_icerik']])
+        
+        if veritabanindaki_haberler_icerik:
+            similarities = cosine_similarity(haber_tfidf, veritabanindaki_haberler_tfidf).flatten()
+            max_similarity = similarities.max()
+
+            if max_similarity >= 0.8:  # Eşik değeri
+                benzer_haberler = [veritabanindaki_haberler_link[i] for i in range(len(similarities)) if similarities[i] >= 0.8]
+                benzer_haberler_str = ','.join(benzer_haberler)
+                
+                # Haberi benzer_haberler alanı ile birlikte ekle
+                c.execute('''
+                    INSERT INTO haberler (haber_baslik, haber_icerik, haber_link, haber_kaynak, haber_image, haber_tarih, haber_gonderildi, haber_van_gonderildi, benzer_haberler)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (haber['haber_baslik'], haber['haber_icerik'], haber['haber_link'], haber['haber_kaynak'], haber['haber_image'], haber['haber_tarih'], 0, 0, benzer_haberler_str))
+            else:
+                # Benzerlik düşükse, haberi normal olarak ekle
+                c.execute('''
+                    INSERT INTO haberler (haber_baslik, haber_icerik, haber_link, haber_kaynak, haber_image, haber_tarih, haber_gonderildi, haber_van_gonderildi)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (haber['haber_baslik'], haber['haber_icerik'], haber['haber_link'], haber['haber_kaynak'], haber['haber_image'], haber['haber_tarih'], 0, 0))
+        else:
+            # Veritabanı boşsa, ilk haberi ekle
+            c.execute('''
+                INSERT INTO haberler (haber_baslik, haber_icerik, haber_link, haber_kaynak, haber_image, haber_tarih, haber_gonderildi, haber_van_gonderildi)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (haber['haber_baslik'], haber['haber_icerik'], haber['haber_link'], haber['haber_kaynak'], haber['haber_image'], haber['haber_tarih'], 0, 0))
+
+    # Değişiklikleri kaydet ve veritabanını kapat
+    conn.commit()
+    conn.close()
+    
 def HaberGonder():
     conn = sqlite3.connect('vista.db')
     c = conn.cursor()
@@ -477,16 +549,16 @@ def VanHaberGonder():
 
 
 while (True):
-    print("Çalışma Başladı : " + datetime.now())
+    print("Çalışma Başladı : " + str(datetime.now()))
     baslangic_zamani = time.time()
     RssParserRun()
-    Veritabani()
-    HaberGonder()
-    VanHaberGonder()
+    Veritabani2()
+    # HaberGonder()
+    # VanHaberGonder()
     bitis_zamani = time.time()
     gecen_sure = bitis_zamani - baslangic_zamani
     print(f"Kodun çalışması {gecen_sure:.2f} saniye sürdü.")
-    print("Bekleme Başladı : " + datetime.now())
+    print("Bekleme Başladı : "  + str(datetime.now()))
     time.sleep(600)
-    print("Bekleme Bitti : " + datetime.now())
+    print("Bekleme Bitti : "  + str(datetime.now()))
     print("_________________________________________________________")
