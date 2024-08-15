@@ -15,8 +15,8 @@ c.execute('''CREATE TABLE IF NOT EXISTS haberler
 conn.commit()
 
 # Telegram bot bilgileri
-telegram_token = '7538919434:AAEOtLBkWDDzaduu34RjfZqV-MzpT44nT0s'
-chat_id = '-4261255235'
+# telegram_token = ''
+# chat_id = '-'
 
 # Web kazıma fonksiyonu
 def haberleri_kaz():
