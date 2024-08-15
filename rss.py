@@ -147,6 +147,7 @@ def get_current_time_in_format():
     formatted_date = current_time.strftime('%Y.%m.%d-%H:%M')
     return formatted_date
 
+
 def format_date_or_default(published_parsed):
     if published_parsed:
         try:
@@ -182,6 +183,7 @@ def format_date_or_default(published_parsed):
         # Eğer tarih bilgisi yoksa, o anın tarihini kullan
         return get_current_time_in_format()
 
+
 def ihdvan():
     # RSS kaynağını çek
     response = requests.get('https://ihdvan.org/feed/')
@@ -209,6 +211,7 @@ def ihdvan():
             })
     else:
         print(f"RSS kaynağına erişim başarısız: {response.status_code}")
+
 
 def RssParser(rss_url, haber_kaynak):
     headers = {
@@ -327,8 +330,10 @@ def RssParser(rss_url, haber_kaynak):
 
         count += 1  # Sayaç artır
 
+
 def DigerKaynaklarRun():
     ihdvan()
+
 
 def RssParserRun():
 
@@ -351,6 +356,7 @@ def RssParserRun():
     #     json.dump(Results, f, ensure_ascii=False, indent=4)
 
     return Results
+
 
 def ResultsStatistic():
     # Haber kaynaklarını saymak için Counter kullanıyoruz
@@ -380,6 +386,7 @@ def ResultsStatistic():
 
     # Örnek çıktıyı görmek için:
     print(istatistikler)
+
 
 def Veritabani():
 
@@ -423,6 +430,7 @@ def Veritabani():
     conn.commit()
     conn.close()
 
+
 def HaberGonder():
     conn = sqlite3.connect('vista.db')
     c = conn.cursor()
@@ -443,6 +451,7 @@ def HaberGonder():
         conn.commit()
         time.sleep(2)
     conn.close()
+
 
 def VanHaberGonder():
     conn = sqlite3.connect('vista.db')
@@ -466,7 +475,9 @@ def VanHaberGonder():
         time.sleep(2)
     conn.close()
 
-while(True):
+
+while (True):
+    print("Çalışma Başladı : " + datetime.now())
     baslangic_zamani = time.time()
     RssParserRun()
     Veritabani()
@@ -475,4 +486,7 @@ while(True):
     bitis_zamani = time.time()
     gecen_sure = bitis_zamani - baslangic_zamani
     print(f"Kodun çalışması {gecen_sure:.2f} saniye sürdü.")
+    print("Bekleme Başladı : " + datetime.now())
     time.sleep(600)
+    print("Bekleme Bitti : " + datetime.now())
+    print("_________________________________________________________")
